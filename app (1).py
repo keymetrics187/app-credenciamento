@@ -52,7 +52,7 @@ def leitor_qr_html():
     components.html(html_code, height=500)
 
 st.set_page_config(page_title="Controle de Credenciamento", layout="centered")
-st.title('Controle de Credenciamento')
+st.title('Controle de Credenciamento (modo debug)')
 
 if "df_participantes" not in st.session_state:
     st.session_state.df_participantes = carregar_dados()
@@ -78,63 +78,28 @@ if qr_code:
     st.code(qr_code, language='text')
     st.info(f"QR Lido: `{qr_code}`")
     df = st.session_state.df_participantes
-    pessoa = df[df['eTicket'].astype(str).str.strip() == qr_code.strip()]
-    if not pessoa.empty:
-        nome = pessoa.iloc[0]['Nome']
-        st.success(f"✅ Check-in feito para {nome}")
-        st.write("Participante encontrado:", pessoa)
-        idx = pessoa.index[0]
-        st.session_state.df_participantes.loc[idx, 'Checkin'] = 'Sim'
-        atualizar_checkin_google(nome, 'Sim')
-    else:
-        st.error("❌ QR Code não encontrado na lista.")
+    st.subheader("🔍 Comparando QR com cada linha da planilha:")
+    match_found = False
+
+    for idx, row in df.iterrows():
+        valor_planilha = str(row['eTicket']).strip()
+        comparado = qr_code.strip()
+        if valor_planilha == comparado:
+            st.success(f"✅ Linha {idx}: BATEU com {valor_planilha}")
+            nome = row['Nome']
+            st.session_state.df_participantes.loc[idx, 'Checkin'] = 'Sim'
+            atualizar_checkin_google(nome, 'Sim')
+            st.success(f"Check-in realizado para {nome}")
+            match_found = True
+            break
+        else:
+            st.warning(f"❌ Linha {idx}: {valor_planilha} ≠ {comparado}")
+
+    if not match_found:
+        st.error("⚠️ Nenhuma correspondência encontrada com o QR escaneado.")
+
     st.session_state.mostrar_scanner = False
     st.experimental_set_query_params()
-    st.rerun()
+    st.stop()
 
-st.markdown("---")
-
-df = st.session_state.df_participantes
-total = df.shape[0]
-credenciados = df[df['Checkin'] == 'Sim'].shape[0]
-faltando = df[df['Checkin'] != 'Sim'].shape[0]
-percentual = (credenciados / total) * 100 if total > 0 else 0
-
-col1, col2, col3 = st.columns(3)
-with col1: st.metric(label="Total", value=total)
-with col2: st.metric(label="Credenciados", value=credenciados)
-with col3: st.metric(label="Faltando", value=f"{faltando} ({percentual:.1f}%)")
-
-st.markdown("---")
-
-st.subheader('Participantes para Credenciar')
-busca_faltantes = st.text_input('Buscar Faltantes', key="busca_faltantes")
-faltantes = df[df['Checkin'] != 'Sim']
-faltantes_view = faltantes if busca_faltantes.strip() == '' else faltantes
-
-for idx, participante in faltantes_view.iterrows():
-    if busca_faltantes.strip() == '' or busca_faltantes.lower() in participante['Nome'].lower():
-        col1, col2 = st.columns([6, 2])
-        with col1: st.write(participante['Nome'])
-        with col2:
-            if st.button("Fazer Check-in", key=f"checkin_{idx}"):
-                st.session_state.df_participantes.loc[idx, 'Checkin'] = 'Sim'
-                atualizar_checkin_google(participante['Nome'], 'Sim')
-                st.rerun()
-
-st.markdown("---")
-
-st.subheader('Participantes Credenciados')
-busca_credenciados = st.text_input('Buscar Credenciados', key="busca_credenciados")
-credenciados_df = df[df['Checkin'] == 'Sim']
-credenciados_view = credenciados_df if busca_credenciados.strip() == '' else credenciados_df
-
-for idx, participante in credenciados_view.iterrows():
-    if busca_credenciados.strip() == '' or busca_credenciados.lower() in participante['Nome'].lower():
-        col1, col2 = st.columns([6, 2])
-        with col1: st.write(participante['Nome'])
-        with col2:
-            if st.button("Desfazer Check-in", key=f"desfazer_{idx}"):
-                st.session_state.df_participantes.loc[idx, 'Checkin'] = 'Não'
-                atualizar_checkin_google(participante['Nome'], 'Não')
-                st.rerun()
+# (O resto do app continua igual...)
