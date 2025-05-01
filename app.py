@@ -53,8 +53,6 @@ if "df_participantes" not in st.session_state:
 if "mostrar_scanner" not in st.session_state:
     st.session_state.mostrar_scanner = False
 
-df_participantes = st.session_state.df_participantes
-
 col1, col2 = st.columns([1, 1])
 with col1:
     if st.button("📷 Abrir Scanner"):
@@ -73,24 +71,27 @@ qr_code = st.query_params.get("qr_code", [None])[0]
 if qr_code:
     st.code(qr_code, language='text')
     st.info(f"QR Lido: `{qr_code}`")
-    pessoa = df_participantes[df_participantes['eTicket'].astype(str).str.strip() == qr_code.strip()]
+    df = st.session_state.df_participantes
+    pessoa = df[df['eTicket'].astype(str).str.strip() == qr_code.strip()]
     if not pessoa.empty:
         nome = pessoa.iloc[0]['Nome']
         st.success(f"✅ Check-in feito para {nome}")
+        st.write("Participante encontrado:", pessoa)
         idx = pessoa.index[0]
         st.session_state.df_participantes.loc[idx, 'Checkin'] = 'Sim'
         atualizar_checkin_google(nome, 'Sim')
     else:
         st.error("❌ QR Code não encontrado na lista.")
     st.session_state.mostrar_scanner = False
-    st.experimental_set_query_params()  # limpa a URL
+    st.experimental_set_query_params()
     st.rerun()
 
 st.markdown("---")
 
-total = df_participantes.shape[0]
-credenciados = df_participantes[df_participantes['Checkin'] == 'Sim'].shape[0]
-faltando = df_participantes[df_participantes['Checkin'] != 'Sim'].shape[0]
+df = st.session_state.df_participantes
+total = df.shape[0]
+credenciados = df[df['Checkin'] == 'Sim'].shape[0]
+faltando = df[df['Checkin'] != 'Sim'].shape[0]
 percentual = (credenciados / total) * 100 if total > 0 else 0
 
 col1, col2, col3 = st.columns(3)
@@ -102,8 +103,8 @@ st.markdown("---")
 
 st.subheader('Participantes para Credenciar')
 busca_faltantes = st.text_input('Buscar Faltantes', key="busca_faltantes")
-faltantes = df_participantes[df_participantes['Checkin'] != 'Sim']
-faltantes_view = faltantes if busca_faltantes.strip() else faltantes.head(5)
+faltantes = df[df['Checkin'] != 'Sim']
+faltantes_view = faltantes if busca_faltantes.strip() == '' else faltantes
 
 for idx, participante in faltantes_view.iterrows():
     if busca_faltantes.strip() == '' or busca_faltantes.lower() in participante['Nome'].lower():
@@ -119,8 +120,8 @@ st.markdown("---")
 
 st.subheader('Participantes Credenciados')
 busca_credenciados = st.text_input('Buscar Credenciados', key="busca_credenciados")
-credenciados_df = df_participantes[df_participantes['Checkin'] == 'Sim']
-credenciados_view = credenciados_df if busca_credenciados.strip() else credenciados_df.head(5)
+credenciados_df = df[df['Checkin'] == 'Sim']
+credenciados_view = credenciados_df if busca_credenciados.strip() == '' else credenciados_df
 
 for idx, participante in credenciados_view.iterrows():
     if busca_credenciados.strip() == '' or busca_credenciados.lower() in participante['Nome'].lower():
