@@ -23,15 +23,11 @@ def leitor_qr_html():
     html_code = '''
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <div id="reader" style="width:100%"></div>
+    <div id="qr_debug" style="margin-top:10px; font-weight: bold;"></div>
     <script>
         function onScanSuccess(decodedText, decodedResult) {
-            const input = document.createElement('input');
-            input.type = 'text';
-            input.name = 'qr_code';
-            input.value = decodedText;
-            input.id = 'qr_result';
-            document.body.appendChild(input);
-            window.parent.postMessage({qr: decodedText}, "*");
+            document.getElementById("qr_debug").innerText = "QR Capturado: " + decodedText;
+            window.location.href = window.location.href.split("?")[0] + "?qr_code=" + encodeURIComponent(decodedText);
         }
 
         var html5QrcodeScanner = new Html5QrcodeScanner(
@@ -47,7 +43,7 @@ def leitor_qr_html():
         html5QrcodeScanner.render(onScanSuccess);
     </script>
     '''
-    components.html(html_code, height=400)
+    components.html(html_code, height=500)
 
 st.set_page_config(page_title="Controle de Credenciamento", layout="centered")
 st.title('Controle de Credenciamento')
@@ -72,44 +68,23 @@ with col2:
 if st.session_state.mostrar_scanner:
     leitor_qr_html()
 
-components.html("""
-<script>
-window.addEventListener("message", (event) => {
-    const qr = event.data.qr;
-    if (qr) {
-        const form = document.createElement("form");
-        form.method = "POST";
-        form.action = window.location.href;
-
-        const input = document.createElement("input");
-        input.type = "hidden";
-        input.name = "qr_code";
-        input.value = qr;
-
-        form.appendChild(input);
-        document.body.appendChild(form);
-        form.submit();
-    }
-});
-</script>
-""")
 qr_code = st.query_params.get("qr_code", [None])[0]
 
 if qr_code:
+    st.code(qr_code, language='text')
     st.info(f"QR Lido: `{qr_code}`")
-    pessoa = df_participantes[df_participantes['eTicket'].str.strip() == qr_code.strip()]
+    pessoa = df_participantes[df_participantes['eTicket'].astype(str).str.strip() == qr_code.strip()]
     if not pessoa.empty:
         nome = pessoa.iloc[0]['Nome']
         st.success(f"✅ Check-in feito para {nome}")
         idx = pessoa.index[0]
         st.session_state.df_participantes.loc[idx, 'Checkin'] = 'Sim'
         atualizar_checkin_google(nome, 'Sim')
-        st.session_state.mostrar_scanner = False
-        st.rerun()
     else:
         st.error("❌ QR Code não encontrado na lista.")
-        st.session_state.mostrar_scanner = False
-        st.rerun()
+    st.session_state.mostrar_scanner = False
+    st.experimental_set_query_params()  # limpa a URL
+    st.rerun()
 
 st.markdown("---")
 
