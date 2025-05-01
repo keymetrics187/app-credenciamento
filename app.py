@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import gspread
 import streamlit.components.v1 as components
+import json
+from oauth2client.service_account import ServiceAccountCredentials
 
 def carregar_dados():
     sheet_id = "1ZsHsE0OVq9v_gHiYuSkkkXv6IElW0QA6zpD3eBUQNs0"
@@ -10,7 +12,11 @@ def carregar_dados():
     return df
 
 def atualizar_checkin_google(nome, checkin_status):
-    gc = gspread.service_account(filename='credentials.json')
+    creds_dict = json.loads(st.secrets["google"]["credentials"])
+    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    credentials = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+    gc = gspread.authorize(credentials)
+
     sh = gc.open_by_key('1ZsHsE0OVq9v_gHiYuSkkkXv6IElW0QA6zpD3eBUQNs0')
     worksheet = sh.worksheet('Página1')
     lista_nomes = worksheet.col_values(1)
