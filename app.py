@@ -14,7 +14,6 @@ def atualizar_checkin_google(nome, checkin_status):
     sh = gc.open_by_key('1ZsHsE0OVq9v_gHiYuSkkkXv6IElW0QA6zpD3eBUQNs0')
     worksheet = sh.worksheet('Página1')
     lista_nomes = worksheet.col_values(1)
-
     for idx, nome_planilha in enumerate(lista_nomes):
         if nome_planilha.strip().lower() == nome.strip().lower():
             worksheet.update_cell(idx + 1, 4, checkin_status)
@@ -34,8 +33,17 @@ def leitor_qr_html():
             document.body.appendChild(input);
             window.parent.postMessage({qr: decodedText}, "*");
         }
+
         var html5QrcodeScanner = new Html5QrcodeScanner(
-            "reader", { fps: 10, qrbox: 250 }, false);
+            "reader",
+            {
+                fps: 10,
+                qrbox: 250,
+                rememberLastUsedCamera: true,
+                facingMode: { exact: "environment" }
+            },
+            false
+        );
         html5QrcodeScanner.render(onScanSuccess);
     </script>
     '''
@@ -60,10 +68,12 @@ window.addEventListener("message", (event) => {
         const form = document.createElement("form");
         form.method = "POST";
         form.action = window.location.href;
+
         const input = document.createElement("input");
         input.type = "hidden";
         input.name = "qr_code";
         input.value = qr;
+
         form.appendChild(input);
         document.body.appendChild(form);
         form.submit();
