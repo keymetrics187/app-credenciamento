@@ -54,10 +54,22 @@ st.title('Controle de Credenciamento')
 
 if "df_participantes" not in st.session_state:
     st.session_state.df_participantes = carregar_dados()
+if "mostrar_scanner" not in st.session_state:
+    st.session_state.mostrar_scanner = False
 
 df_participantes = st.session_state.df_participantes
 
-if st.button("Escanear QR Code"):
+col1, col2 = st.columns([1, 1])
+with col1:
+    if st.button("📷 Abrir Scanner"):
+        st.session_state.mostrar_scanner = True
+        st.rerun()
+with col2:
+    if st.button("❌ Fechar Scanner"):
+        st.session_state.mostrar_scanner = False
+        st.rerun()
+
+if st.session_state.mostrar_scanner:
     leitor_qr_html()
 
 components.html("""
@@ -84,17 +96,20 @@ window.addEventListener("message", (event) => {
 qr_code = st.query_params.get("qr_code", [None])[0]
 
 if qr_code:
-    st.success(f"QR Lido: {qr_code}")
-    pessoa = df_participantes[df_participantes['eTicket'] == qr_code]
+    st.info(f"QR Lido: `{qr_code}`")
+    pessoa = df_participantes[df_participantes['eTicket'].str.strip() == qr_code.strip()]
     if not pessoa.empty:
         nome = pessoa.iloc[0]['Nome']
         st.success(f"✅ Check-in feito para {nome}")
         idx = pessoa.index[0]
         st.session_state.df_participantes.loc[idx, 'Checkin'] = 'Sim'
         atualizar_checkin_google(nome, 'Sim')
+        st.session_state.mostrar_scanner = False
         st.rerun()
     else:
-        st.error("❌ QR Code inválido!")
+        st.error("❌ QR Code não encontrado na lista.")
+        st.session_state.mostrar_scanner = False
+        st.rerun()
 
 st.markdown("---")
 
